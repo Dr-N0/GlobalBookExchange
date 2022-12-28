@@ -20,6 +20,7 @@ module.exports = (req, res, next) => {
         if(e instanceof jwt.TokenExpiredError){
             res.clearCookie('authToken');
             console.log('cookie cleared');
+            res.redirect('/');
             next();
             return;
         }

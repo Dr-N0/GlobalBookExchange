@@ -51,6 +51,9 @@ const userSchema = new mongoose.Schema({
     },
     address: {
         type: addressSchema,
+    },
+    books: {
+        type: [String],
     }
 });
 

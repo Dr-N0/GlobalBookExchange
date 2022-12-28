@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 
 const BookModel = require('../models/book');
+const UserModel = require('../models/user');
 
 const authMiddleware = require('../middleware/authMiddleware');
 const book = require('../models/book');
@@ -15,7 +16,7 @@ router.get('/add', authMiddleware, (req, res) => {
 });
 
 router.post('/add', authMiddleware, (req, res) => {
-    const url = 'https://googleapis.com/v1/volumes/' + req.body.bookID;
+    const url = 'https://www.googleapis.com/books/v1/volumes/' + req.body.bookID;
     fetch(url, {
         method: 'GET',
     })
@@ -23,11 +24,24 @@ router.post('/add', authMiddleware, (req, res) => {
         .then(async data => {
             try {
                 const bookInfo = data.volumeInfo;
-                const userID = res.locals.userID;
+                let bookISBN = '';
+                for (let i in bookInfo.industryIdentifiers) {
+                    if (bookInfo.industryIdentifiers[i].type == 'ISBN_13') {
+                        bookISBN = bookInfo.industryIdentifiers[i].identifier;
+                        break;
+                    }
+                    else if (bookInfo.industryIdentifiers[i].type == 'ISBN_10' && (!bookISBN || bookISBN == 'N/A')) {
+                        bookISBN = bookInfo.industryIdentifiers[i].identifier;
+                    }
+                    else {
+                        bookISBN = 'N/A';
+                    }
+                }
+                const userID = res.locals.user.id;
                 const update = { $push: { sourceUsers: userID } };
                 let book = await BookModel.findOneAndUpdate({
                     bookDetails: {
-                        isbn: bookInfo.isbn,
+                        isbn: bookISBN,
                         title: bookInfo.title,
                         authors: bookInfo.authors,
                         publisher: bookInfo.publisher,
@@ -37,10 +51,11 @@ router.post('/add', authMiddleware, (req, res) => {
                     new: true,
                 });
                 if (!book) {
-                    newBook = new BookModel({
+                    book = new BookModel({
                         sourceUsers: userID,
                         bookDetails: {
-                            isbn: bookInfo.isbn,
+                            isbn: bookISBN,
+                            thumbnailLink: (bookInfo.imageLinks.thumbnail ? bookInfo.imageLinks.thumbnail : 'No Image Available'),
                             title: bookInfo.title,
                             authors: bookInfo.authors,
                             publisher: bookInfo.publisher,
@@ -48,15 +63,16 @@ router.post('/add', authMiddleware, (req, res) => {
                             description: bookInfo.description
                         }
                     });
-                    await newBook.save();
+                    book = await book.save();
+                    let user = await UserModel.findByIdAndUpdate(userID, { $push: { books: book._id } });
                 }
                 res.status(200).redirect('/profile/');
             }
             catch (e) {
-
+                console.log(e);
+                res.status(500).redirect('/books/add');
             }
         })
-    res.send('Book Added');
 });
 
 router.get('/add-by-isbn', authMiddleware, (req, res) => {

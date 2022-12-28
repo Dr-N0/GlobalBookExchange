@@ -18,11 +18,9 @@
                 <p class="book-card-published-date">
                     <%= book.publishedDate %>
                 </p>
-                <!-- <p class="book-card-description">
-                    <%= book.description %>
-                </p> -->
-                <div class="book-card-button">
-                    <button type="button" class="primary-grey-button">Select</button>
-                </div>
+                <form class="book-card-button" method="POST" action="/books/add" onsubmit="return confirmBookAddition('<%= book.title %>')">
+                    <input type="hidden" name="bookID" value="<%= book.identifier %>"/>
+                    <input type="submit" class="primary-grey-button" value="Select" />
+                </form>
     </div>
 </div>
